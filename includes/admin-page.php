@@ -14,7 +14,6 @@ function cps_add_admin_menu() {
     );
 }
 
-
 function cps_render_admin_page() {
     ?>
     <div class="wrap">
@@ -26,14 +25,17 @@ function cps_render_admin_page() {
             submit_button( 'Save Custom Domain' );
             ?>
         </form>
+
         <hr>
+
+        <!-- Display Products Table -->
         <h2>Products</h2>
         <table class="widefat fixed" cellspacing="0">
             <thead>
                 <tr>
                     <th>Product Image</th>
                     <th>Product Name</th>
-                    <th>Product URL</th> <!-- Show product URL -->
+                    <th>Product URL</th>
                     <th>Short Link</th>
                     <th>Actions</th>
                 </tr>
@@ -52,7 +54,7 @@ function cps_render_admin_page() {
                     echo "<tr>
                             <td><img src='{$image_url}' width='64' height='64' style='border-radius: 12px;'></td>
                             <td>{$product->post_title}</td>
-                            <td><a href='{$product_url}' target='_blank'>{$product_url}</a></td> <!-- Display product URL -->
+                            <td><a href='{$product_url}' target='_blank'>{$product_url}</a></td>
                             <td><input type='text' readonly value='{$short_link}' class='shortlink-input'></td>
                             <td><button class='button cps-copy-btn' data-link='{$short_link}'>Copy</button></td>
                           </tr>";
@@ -61,13 +63,16 @@ function cps_render_admin_page() {
             </tbody>
         </table>
     </div>
+
     <?php
 }
 
-// Register settings for the custom domain
+// Register settings for the custom domain and API activation
 add_action( 'admin_init', 'cps_register_settings' );
 function cps_register_settings() {
     register_setting( 'cps_settings_group', 'cps_custom_domain' );
+    register_setting( 'cps_settings_group', 'cps_enable_api' ); // Enable/Disable API setting
+
     add_settings_section( 'cps_settings_section', 'Settings', null, 'product-shortlinks-settings' );
     add_settings_field(
         'cps_custom_domain',
@@ -76,9 +81,24 @@ function cps_register_settings() {
         'product-shortlinks-settings',
         'cps_settings_section'
     );
+
+    add_settings_section( 'cps_api_settings_section', 'REST API Settings', null, 'product-shortlinks-settings' );
+    add_settings_field(
+        'cps_enable_api',
+        'Enable REST API',
+        'cps_enable_api_field',
+        'product-shortlinks-settings',
+        'cps_api_settings_section'
+    );
 }
 
 function cps_custom_domain_field() {
     $value = get_option( 'cps_custom_domain', '' );
     echo "<input type='text' name='cps_custom_domain' value='{$value}' placeholder='https://example.com' />";
+}
+
+// Create the Enable REST API checkbox field
+function cps_enable_api_field() {
+    $value = get_option( 'cps_enable_api', '1' ); // Default to 'enabled'
+    echo "<input type='checkbox' name='cps_enable_api' value='1' " . checked( 1, $value, false ) . " /> Enable REST API";
 }

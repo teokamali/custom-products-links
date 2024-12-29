@@ -12,7 +12,7 @@ if ( ! defined( 'ABSPATH' ) ) exit; // Exit if accessed directly
 require_once plugin_dir_path( __FILE__ ) . 'includes/admin-page.php';
 require_once plugin_dir_path( __FILE__ ) . 'includes/shortlink-generator.php';
 
-register_activation_hook( __FILE__, 'cps_activate_plugin' );
+// Activation hook
 register_activation_hook( __FILE__, 'cps_activate_plugin' );
 function cps_activate_plugin() {
     error_log('Plugin activation started');
@@ -23,7 +23,7 @@ function cps_activate_plugin() {
     $charset_collate = $wpdb->get_charset_collate();
 
     // Check if the table already exists before attempting to create it
-    if($wpdb->get_var("SHOW TABLES LIKE '$table_name'") !== $table_name) {
+    if ($wpdb->get_var("SHOW TABLES LIKE '$table_name'") !== $table_name) {
         $sql = "CREATE TABLE $table_name (
             id BIGINT(20) UNSIGNED NOT NULL AUTO_INCREMENT,
             product_id BIGINT(20) UNSIGNED NOT NULL,
@@ -44,6 +44,7 @@ function cps_activate_plugin() {
     }
 
     add_option( 'cps_custom_domain', '' );
+    add_option( 'cps_enable_api', '1' ); // Default to enabled
 }
 
 // Enqueue admin scripts
@@ -54,15 +55,36 @@ function cps_enqueue_admin_scripts( $hook ) {
     }
 }
 
-// Register REST API route
-add_action( 'rest_api_init', function() {
+// Register REST API routes conditionally based on admin settings
+add_action( 'rest_api_init', 'cps_register_rest_api_routes' );
+function cps_register_rest_api_routes() {
+    // Check if the API is enabled
+    if ( get_option( 'cps_enable_api', '1' ) != '1' ) {
+        return; // Do not register routes if API is disabled
+    }
+
+    // Register the route for listing all shortlinks
     register_rest_route( 'cps/v1', '/shortlinks', [
         'methods' => 'GET',
         'callback' => 'cps_get_all_shortlinks',
         'permission_callback' => '__return_true', // Adjust the permissions as needed
     ]);
-});
 
+    // Register the route for getting a single shortlink by short_code
+    register_rest_route( 'cps/v1', '/shortlinks/(?P<short_code>[a-zA-Z0-9]+)', [
+        'methods' => 'GET',
+        'callback' => 'cps_get_shortlink_by_code',
+        'args' => [
+            'short_code' => [
+                'validate_callback' => function( $param, $request, $key ) {
+                    return preg_match( '/^[a-zA-Z0-9]{6}$/', $param );
+                }
+            ]
+        ]
+    ]);
+}
+
+// Callback for getting all shortlinks
 function cps_get_all_shortlinks() {
     global $wpdb;
     $table_name = $wpdb->prefix . 'product_shortlinks';
@@ -78,22 +100,7 @@ function cps_get_all_shortlinks() {
     return new WP_REST_Response( $results, 200 );
 }
 
-//Get Single Product
-add_action( 'rest_api_init', 'cps_register_shortlink_api' );
-function cps_register_shortlink_api() {
-    register_rest_route( 'cps/v1', '/shortlinks/(?P<short_code>[a-zA-Z0-9]+)', [
-        'methods' => 'GET',
-        'callback' => 'cps_get_shortlink_by_code',
-        'args' => [
-            'short_code' => [
-                'validate_callback' => function( $param, $request, $key ) {
-                    // Validate the short_code (optional)
-                    return preg_match( '/^[a-zA-Z0-9]{6}$/', $param );
-                }
-            ]
-        ]
-    ]);
-}
+// Callback for getting a single shortlink by its short_code
 function cps_get_shortlink_by_code( $data ) {
     global $wpdb;
     $short_code = sanitize_text_field( $data['short_code'] );  // Get the short_code from the URL
