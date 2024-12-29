@@ -3,7 +3,7 @@
 Plugin Name: Custom Product Shortlinks
 Description: Displays a list of products in the admin panel and generates random short links for each product using a custom domain.
 Version: 1.0
-Author: Your Name
+Author: Teo Kamalipour
 */
 
 if ( ! defined( 'ABSPATH' ) ) exit; // Exit if accessed directly
