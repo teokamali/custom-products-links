@@ -31,7 +31,9 @@ function cps_render_admin_page() {
         <table class="widefat fixed" cellspacing="0">
             <thead>
                 <tr>
+                    <th>Product Image</th>
                     <th>Product Name</th>
+                    <th>Product URL</th> <!-- Show product URL -->
                     <th>Short Link</th>
                     <th>Actions</th>
                 </tr>
@@ -41,10 +43,16 @@ function cps_render_admin_page() {
                 $products = cps_get_products();
                 $custom_domain = get_option( 'cps_custom_domain', home_url() );
                 foreach ( $products as $product ) {
-                    // Fetch the short link for the product
+                    // Fetch the short link and product image
                     $short_link = cps_generate_shortlink( $product->ID, $custom_domain );
+                    $image_url = get_the_post_thumbnail_url( $product->ID, 'thumbnail' ); // Fetch product image
+                    $image_url = $image_url ?: 'https://via.placeholder.com/64'; // Placeholder if no image
+                    $product_url = get_permalink( $product->ID ); // Get the full product URL
+
                     echo "<tr>
+                            <td><img src='{$image_url}' width='64' height='64' style='border-radius: 12px;'></td>
                             <td>{$product->post_title}</td>
+                            <td><a href='{$product_url}' target='_blank'>{$product_url}</a></td> <!-- Display product URL -->
                             <td><input type='text' readonly value='{$short_link}' class='shortlink-input'></td>
                             <td><button class='button cps-copy-btn' data-link='{$short_link}'>Copy</button></td>
                           </tr>";
