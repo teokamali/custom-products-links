@@ -2,7 +2,7 @@
 /*
 Plugin Name: Custom Product Shortlinks
 Description: Displays a list of products in the admin panel and generates random short links for each product using a custom domain.
-Version: 1.1
+Version: 1.2
 Author: Teo Kamalipour
 */
 
@@ -78,3 +78,43 @@ function cps_get_all_shortlinks() {
     return new WP_REST_Response( $results, 200 );
 }
 
+//Get Single Product
+add_action( 'rest_api_init', 'cps_register_shortlink_api' );
+function cps_register_shortlink_api() {
+    register_rest_route( 'cps/v1', '/shortlinks/(?P<short_code>[a-zA-Z0-9]+)', [
+        'methods' => 'GET',
+        'callback' => 'cps_get_shortlink_by_code',
+        'args' => [
+            'short_code' => [
+                'validate_callback' => function( $param, $request, $key ) {
+                    // Validate the short_code (optional)
+                    return preg_match( '/^[a-zA-Z0-9]{6}$/', $param );
+                }
+            ]
+        ]
+    ]);
+}
+function cps_get_shortlink_by_code( $data ) {
+    global $wpdb;
+    $short_code = sanitize_text_field( $data['short_code'] );  // Get the short_code from the URL
+
+    // Query the database for the row with the given short_code
+    $table_name = $wpdb->prefix . 'product_shortlinks';
+    $row = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM $table_name WHERE short_code = %s", $short_code ) );
+
+    if ( !$row ) {
+        return new WP_REST_Response( 'Shortlink not found', 404 );
+    }
+
+    // Format the data to match your response structure
+    $response = [
+        'id'                => $row->id,
+        'product_id'        => $row->product_id,
+        'short_code'        => $row->short_code,
+        'product_title'     => $row->product_title,
+        'product_url'       => $row->product_url,
+        'product_image_url' => $row->product_image_url
+    ];
+
+    return new WP_REST_Response( $response, 200 );
+}
