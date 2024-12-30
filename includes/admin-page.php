@@ -26,6 +26,28 @@ function cps_render_admin_page() {
             ?>
         </form>
 
+        <div>
+            <h2>API Doc</h2>
+           <ul>
+            <li>
+                The API is only available if the option is enabled in the admin settings.
+            </li>
+            <li>
+                GET single link: /wp-json/cps/v1/shortlinks/{short_code}
+            </li>
+            <li>
+                GET all link: /wp-json/cps/v1/shortlinks
+            </li>
+            <li>
+                Example API: https://example.com/wp-json/cps/v1/shortlinks/SHORT_CODE
+            </li>
+            <li>
+                Example API: https://example.com/wp-json/cps/v1/shortlinks
+            </li>
+
+           </ul>
+        </div>
+
         <hr>
 
         <!-- Display Products Table -->
