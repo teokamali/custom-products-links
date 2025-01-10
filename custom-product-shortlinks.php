@@ -15,14 +15,12 @@ require_once plugin_dir_path( __FILE__ ) . 'includes/shortlink-generator.php';
 // Activation hook
 register_activation_hook( __FILE__, 'cps_activate_plugin' );
 function cps_activate_plugin() {
-    error_log('Plugin activation started');
-    
     global $wpdb;
 
     $table_name = $wpdb->prefix . 'product_shortlinks';
     $charset_collate = $wpdb->get_charset_collate();
 
-    // Check if the table already exists before attempting to create it
+    // Check if the table exists before attempting to create it
     if ($wpdb->get_var("SHOW TABLES LIKE '$table_name'") !== $table_name) {
         $sql = "CREATE TABLE $table_name (
             id BIGINT(20) UNSIGNED NOT NULL AUTO_INCREMENT,
@@ -38,15 +36,17 @@ function cps_activate_plugin() {
 
         require_once ABSPATH . 'wp-admin/includes/upgrade.php';
         dbDelta( $sql );
-        error_log('Table created or updated');
-    } else {
-        error_log('Table already exists');
     }
 
     add_option( 'cps_custom_domain', '' );
     add_option( 'cps_enable_api', '1' ); // Default to enabled
-}
 
+    // Grant `manage_woocommerce` capability to `shop_manager` if not already assigned
+    $role = get_role( 'shop_manager' );
+    if ( $role && !$role->has_cap( 'manage_woocommerce' ) ) {
+        $role->add_cap( 'manage_woocommerce' );
+    }
+}
 // Enqueue admin scripts
 add_action( 'admin_enqueue_scripts', 'cps_enqueue_admin_scripts' );
 function cps_enqueue_admin_scripts( $hook ) {

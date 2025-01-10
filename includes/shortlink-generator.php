@@ -7,8 +7,7 @@ function cps_generate_short_code( $product_id ) {
     // Check if the product already has a short code
     $row = $wpdb->get_row( $wpdb->prepare( "SELECT short_code FROM $table_name WHERE product_id = %d", $product_id ) );
     if ( $row ) {
-        // If a short code already exists, return it
-        return $row->short_code;
+        return $row->short_code; // Return existing short code
     }
 
     // Generate a unique short code
@@ -20,17 +19,17 @@ function cps_generate_short_code( $product_id ) {
     // Fetch product details
     $product = get_post( $product_id );
     $product_title = $product->post_title;
-    $product_url = get_permalink( $product_id );  // Get the full product URL
+    $product_url = get_permalink( $product_id ); // Get the full product URL
     $product_image_url = get_the_post_thumbnail_url( $product_id, 'full' );
 
     // Insert the new short code and product details into the table
     $wpdb->insert(
         $table_name,
         [
-            'product_id' => $product_id,
-            'short_code' => $short_code,
-            'product_title' => $product_title,
-            'product_url' => $product_url,  // Store product URL instead of description
+            'product_id'        => $product_id,
+            'short_code'        => $short_code,
+            'product_title'     => $product_title,
+            'product_url'       => $product_url,
             'product_image_url' => $product_image_url,
         ],
         [ '%d', '%s', '%s', '%s', '%s' ]
@@ -38,16 +37,16 @@ function cps_generate_short_code( $product_id ) {
 
     return $short_code;
 }
-// Generate the full short link
-function cps_generate_shortlink( $product_id, $custom_domain ) {
+
+function cps_generate_shortlink( $product_id, $custom_domain = '' ) {
+    global $wpdb;
+
+    // Custom domain or fallback to site URL
+    $custom_domain = $custom_domain ?: home_url();
+
+    // Generate or fetch the short code
     $short_code = cps_generate_short_code( $product_id );
+
     return trailingslashit( $custom_domain ) . $short_code;
 }
 
-function cps_get_products() {
-    return get_posts( [
-        'post_type' => 'product',
-        'posts_per_page' => -1,
-        'post_status' => 'publish',
-    ] );
-}
