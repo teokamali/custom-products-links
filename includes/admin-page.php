@@ -16,120 +16,114 @@ function cps_add_admin_menu() {
 
 
 function cps_render_admin_page() {
+    $paged = isset($_GET['paged']) ? max(1, intval($_GET['paged'])) : 1; // Current page
+    $posts_per_page = 10; // Number of products per page
+
     ?>
     <div class="wrap">
         <h1>Product Shortlinks</h1>
-   
-<div style="display:flex; align-items:center; justify-content:space-between">
-
-    <form method="post" action="options.php">
-        <?php
-            settings_fields('cps_settings_group');
-            do_settings_sections('product-shortlinks-settings');
-            submit_button('Save Custom Domain');
-            ?>
-        </form>
-        
-        <div>
-            <h2>API Doc</h2>
-            <ul>
-                <li>The API is only available if the option is enabled in the admin settings.</li>
-                <li>GET single link: /wp-json/cps/v1/shortlinks/{short_code}</li>
-                <li>GET all link: /wp-json/cps/v1/shortlinks</li>
-                <li>Example API: https://example.com/wp-json/cps/v1/shortlinks/SHORT_CODE</li>
-                <li>Example API: https://example.com/wp-json/cps/v1/shortlinks</li>
-            </ul>
-        </div>
-    </div>
-
-        <hr>
-     
-        <!-- Search Form with separate fields for name and SKU -->
-        <!-- Display Products Table -->
-        <h2>Products</h2>
-        <form method="get" action="" style="max-width:50%; display:flex; align-items:center; gap:16px">
+        <!-- Search Form -->
+        <form method="get" action="">
             <input type="hidden" name="page" value="product-shortlinks" />
-            <div>
-                <label for="search_name">جستوجو نام محصول:</label>
-                <input type="text" name="search_name" id="search_name" value="<?php echo isset($_GET['search_name']) ? esc_attr($_GET['search_name']) : ''; ?>" placeholder="جستوجو نام محصول" />
-            </div>
-            <div>
-
-                <label for="search_sku">جستوجو با SKU:</label>
-                <input type="text" name="search_sku" id="search_sku" value="<?php echo isset($_GET['search_sku']) ? esc_attr($_GET['search_sku']) : ''; ?>" placeholder="جستوجو با SKU" />
-            </div>
-            
-            <button type="submit" class="button" >جستوجو</button>
+            <input type="text" name="search_name" value="<?php echo esc_attr($_GET['search_name'] ?? ''); ?>" placeholder="Search by name" />
+            <input type="text" name="search_sku" value="<?php echo esc_attr($_GET['search_sku'] ?? ''); ?>" placeholder="Search by SKU" />
+            <button type="submit" class="button">Search</button>
         </form>
-        <table class="widefat fixed" cellspacing="0" style="margin-top:16px;">
+
+        <!-- Products Table -->
+        <table class="widefat fixed">
             <thead>
                 <tr>
-                    <th>Product SKU</th> <!-- New Column for SKU -->
-                    <th>Product Image</th>
-                    <th>Product Name</th>
-                    <th>Product URL</th>
+                    <th>SKU</th>
+                    <th>Image</th>
+                    <th>Name</th>
+                    <th>URL</th>
                     <th>Short Link</th>
                     <th>Actions</th>
                 </tr>
             </thead>
             <tbody>
                 <?php
-                // Get the search queries for name and SKU
-                $search_name = isset($_GET['search_name']) ? sanitize_text_field($_GET['search_name']) : '';
-                $search_sku = isset($_GET['search_sku']) ? sanitize_text_field($_GET['search_sku']) : '';
+                $search_name = $_GET['search_name'] ?? '';
+                $search_sku = $_GET['search_sku'] ?? '';
 
-                $products = cps_get_products($search_name, $search_sku); // Pass the search queries to the function
-                
-                $custom_domain = get_option('cps_custom_domain', home_url());
-                foreach ($products as $product) {
-                    // Fetch the SKU and other product details
-                    $sku = get_post_meta($product->ID, '_sku', true); // Get SKU
-                    $short_link = cps_generate_shortlink($product->ID, $custom_domain);
-                    $image_url = get_the_post_thumbnail_url($product->ID, 'thumbnail') ?: 'https://via.placeholder.com/64';
-                    $product_url = get_permalink($product->ID);
+                $products_query = cps_get_products($search_name, $search_sku, $paged, $posts_per_page);
 
-                    echo "<tr>
-                            <td>{$sku}</td> <!-- Display SKU -->
-                            <td><img src='{$image_url}' width='64' height='64' style='border-radius: 12px;'></td>
-                            <td>{$product->post_title}</td>
-                            <td><a href='{$product_url}' target='_blank'>{$product_url}</a></td>
-                            <td><input type='text' readonly value='{$short_link}' class='shortlink-input'></td>
-                            <td><button class='button cps-copy-btn' data-link='{$short_link}'>Copy</button></td>
-                          </tr>";
+                if ($products_query->have_posts()) {
+                    while ($products_query->have_posts()) {
+                        $products_query->the_post();
+                        $product_id = get_the_ID();
+                        $sku = get_post_meta($product_id, '_sku', true);
+                        $image_url = get_the_post_thumbnail_url($product_id, 'thumbnail') ?: 'https://via.placeholder.com/64';
+                        $product_url = get_permalink($product_id);
+                        $short_link = cps_generate_shortlink($product_id, get_option('cps_custom_domain', home_url()));
+
+                        echo "<tr>
+                                <td>{$sku}</td>
+                                <td><img src='{$image_url}' width='64' height='64'></td>
+                                <td>" . get_the_title() . "</td>
+                                <td><a href='{$product_url}' target='_blank'>{$product_url}</a></td>
+                                <td><input type='text' readonly value='{$short_link}'></td>
+                                <td><button class='button'>Copy</button></td>
+                              </tr>";
+                    }
+                } else {
+                    echo "<tr><td colspan='6'>No products found.</td></tr>";
                 }
+
+                wp_reset_postdata();
                 ?>
             </tbody>
         </table>
+
+        <!-- Pagination -->
+        <div class="tablenav">
+            <div class="tablenav-pages">
+                <?php
+                $total_pages = $products_query->max_num_pages;
+                $base_url = add_query_arg(['paged' => '%#%'], menu_page_url('product-shortlinks', false));
+                echo paginate_links([
+                    'base'      => $base_url,
+                    'format'    => '&paged=%#%',
+                    'current'   => $paged,
+                    'total'     => $total_pages,
+                    'prev_text' => __('« Prev'),
+                    'next_text' => __('Next »'),
+                ]);
+                ?>
+            </div>
+        </div>
     </div>
     <?php
 }
-
 // Modify the `cps_get_products` function to include search functionality for both name and SKU
-function cps_get_products($search_name = '', $search_sku = '') {
+function cps_get_products($search_name = '', $search_sku = '', $paged = 1, $posts_per_page = 10) {
     $args = [
         'post_type' => 'product',
-        'posts_per_page' => -1,
         'post_status' => 'publish',
+        'paged' => $paged, // Add current page
+        'posts_per_page' => $posts_per_page, // Add items per page
     ];
 
     // Add search by name if provided
     if ($search_name) {
-        $args['s'] = $search_name; // Search by product name
+        $args['s'] = $search_name;
     }
 
     // Add search by SKU if provided
     if ($search_sku) {
         $args['meta_query'] = [
             [
-                'key' => '_sku', 
-                'value' => $search_sku, 
+                'key' => '_sku',
+                'value' => $search_sku,
                 'compare' => 'LIKE',
             ],
         ];
     }
 
-    return get_posts($args);
+    return new WP_Query($args);
 }
+
 
 // Register settings
 add_action('admin_init', 'cps_register_settings');
